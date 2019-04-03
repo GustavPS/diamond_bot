@@ -1,5 +1,5 @@
 from api import Api
-import time
+import time, datetime
 import math
 
 class Bot():
@@ -51,6 +51,10 @@ class Bot():
         }
         self.api.set_data(data)
         req = self.api._req("/boards/"+str(self.board_id)+"/move", "POST")
+        if req.status_code == 200:
+            return req.json()
+        print(req.content)
+        return False
 
     def _update_bot(self, board):
         for bot in board["bots"]:
@@ -67,7 +71,6 @@ class Bot():
                 else:
                     self.should_rejoin = False
 
-                print("Score: " + str(bot["score"]) + " Diamonds: " + str(bot["diamonds"]))
                 break
 
     def _rejoin(self):
@@ -96,7 +99,8 @@ class Bot():
 
 
 
-        
+
+        print("Går hem")
         if self.position["x"] > lowest["object"]["x"]:
             return "West"
         elif self.position["x"] < lowest["object"]["x"]:
@@ -136,15 +140,19 @@ class Bot():
                                 if r2 < lowest["r"]:
                                     lowest["object"] = {"x": o2["position"]["x"], "y": o2["position"]["y"]}
                                     lowest["type"] = "tp"
+                                    lowest["r"] = r2
                                 
                 
-                elif r < lowest["r"]:
+                elif r / 1.5 < lowest["r"]:
                     if o["name"] == "DiamondButton":
                         lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
                         lowest["type"] = "gen"
+                        lowest["r"] = r/2
 
                         
             diamond = lowest["object"]
+
+            print("Går till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
 
             if lowest["type"] == "diamond" and self.inventory + diamond["points"] > 5:
                 return self._go_home(board)
@@ -162,20 +170,23 @@ class Bot():
             
 
     def game_loop(self):
+        board = self.get_board_info()
         while(True):
-            board = self.get_board_info()
             if(not board):
                 print("Kan inte hämta board")
-                return
-            
+                self._rejoin()
+                time.sleep(100/1000)
+                board = self.get_board_info()
+                continue
+        
             self._update_bot(board)
             #time.sleep(board["minimumDelayBetweenMoves"] / 1000)
-            time.sleep(20/1000)
+            #time.sleep(20/1000)
             if(self.should_rejoin):
                 self._rejoin()
 
-
-            self.move(self._where_to(board))
+            time.sleep(100/1000)
+            board = self.move(self._where_to(board))
             
             
 
