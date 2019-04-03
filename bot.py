@@ -87,8 +87,9 @@ class Bot():
                 #Find the other teleporter
                 for o2 in board["gameObjects"]:
                     if o2 != o and o2["name"] == "Teleporter":
-                        r2 = self._getDelta(self.position, {"x": o["position"]["x"], "y": o["position"]["y"]})
+                        r2 = self._getDelta(self.home, {"x": o2["position"]["x"], "y": o2["position"]["y"]})
                         if (r2+r) < lowest["r"]:
+                            print("TA TELEPORT HEM")
                             lowest["r"] = r2+r
                             lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
 
