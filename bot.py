@@ -14,7 +14,7 @@ class Bot():
 
         self.should_rejoin = False
 
-    
+
     def register_bot(self):
         data = {
             "email": self.email,
@@ -53,7 +53,7 @@ class Bot():
         req = self.api._req("/boards/"+str(self.board_id)+"/move", "POST")
         if req.status_code == 200:
             return req.json()
-        print(req.content)
+        #print(req.content)
         return False
 
     def _update_bot(self, board):
@@ -85,14 +85,14 @@ class Bot():
 
         for o in board["gameObjects"]:
             r = self._getDelta(self.position, {"x": o["position"]["x"], "y": o["position"]["y"]})
-                
+
             if o["name"] == "Teleporter":
                 #Find the other teleporter
                 for o2 in board["gameObjects"]:
                     if o2 != o and o2["name"] == "Teleporter":
                         r2 = self._getDelta(self.home, {"x": o2["position"]["x"], "y": o2["position"]["y"]})
                         if (r2+r) < lowest["r"]:
-                            print("TA TELEPORT HEM")
+                            #print("TA TELEPORT HEM")
                             lowest["r"] = r2+r
                             lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
 
@@ -100,7 +100,7 @@ class Bot():
 
 
 
-        print("Går hem")
+        #print("Gar hem")
         if self.position["x"] > lowest["object"]["x"]:
             return "West"
         elif self.position["x"] < lowest["object"]["x"]:
@@ -111,8 +111,8 @@ class Bot():
             return "South"
 
     def _getDelta(self, _from, to):
-        deltaX = abs(_from["x"] - to["x"])
-        deltaY = abs(_from["y"] - to["y"])
+        deltaX = to["x"] - _from["x"]
+        deltaY = to["y"] - _from["y"]
         return math.sqrt(pow(deltaX,2) + pow(deltaY,2))
 
     def _where_to(self, board):
@@ -130,7 +130,7 @@ class Bot():
 
             for o in board["gameObjects"]:
                 r = self._getDelta(self.position, {"x": o["position"]["x"], "y": o["position"]["y"]})
-                
+
                 if o["name"] == "Teleporter":
                     #Find the other teleporter
                     for o2 in board["gameObjects"]:
@@ -141,22 +141,21 @@ class Bot():
                                     lowest["object"] = {"x": o2["position"]["x"], "y": o2["position"]["y"]}
                                     lowest["type"] = "tp"
                                     lowest["r"] = r2
-                                
-                
-                elif r / 1.5 < lowest["r"]:
-                    if o["name"] == "DiamondButton":
-                        lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
-                        lowest["type"] = "gen"
-                        lowest["r"] = r/2
+                        elif o["name"] == "DiamondButton":
+                            r2 = r + self._getDelta({"x": o2["position"]["x"], "y": o2["position"]["y"]}, diamond)
+                            if r2/1.5 < lowest["r"]:
+                                lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
+                                lowest["type"] = "gen"
+                                lowest["r"] = r2/2
 
-                        
+
             diamond = lowest["object"]
 
-            print("Går till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
+            #print("Gar till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
 
             if lowest["type"] == "diamond" and self.inventory + diamond["points"] > 5:
                 return self._go_home(board)
-            
+
             deltaX = self.position["x"] - diamond["x"]
             deltaY = self.position["y"] - diamond["y"]
             if self.position["x"] > diamond["x"]:
@@ -167,18 +166,18 @@ class Bot():
                 return "North"
             else:
                 return "South"
-            
+
 
     def game_loop(self):
         board = self.get_board_info()
         while(True):
             if(not board):
-                print("Kan inte hämta board")
+                #print("Kan inte hamta board")
                 self._rejoin()
                 time.sleep(100/1000)
                 board = self.get_board_info()
                 continue
-        
+
             self._update_bot(board)
             #time.sleep(board["minimumDelayBetweenMoves"] / 1000)
             #time.sleep(20/1000)
@@ -187,7 +186,3 @@ class Bot():
 
             time.sleep(100/1000)
             board = self.move(self._where_to(board))
-            
-            
-
-        
