@@ -1,6 +1,6 @@
 from api import Api
 import time, datetime
-import math
+import math, random
 
 class Bot():
     def __init__(self, token, name):
@@ -11,6 +11,8 @@ class Bot():
         self.position = { "x": 0, "y": 0 }
         self.home = {"x": 0, "y": 0}
         self.inventory = 0
+        self.target = None
+        self.oldPosition = { "x": 0, "y": 0 }
 
         self.should_rejoin = False
 
@@ -59,6 +61,8 @@ class Bot():
     def _update_bot(self, board):
         for bot in board["bots"]:
             if bot["name"] == self.name:
+                self.oldPosition["x"] = self.position["x"]
+                self.oldPosition["y"] = self.position["y"]
                 self.position["x"] = bot["position"]["x"]
                 self.position["y"] = bot["position"]["y"]
                 self.home["x"] = bot["base"]["x"]
@@ -115,8 +119,17 @@ class Bot():
         deltaY = to["y"] - _from["y"]
         return math.sqrt(pow(deltaX,2) + pow(deltaY,2))
 
+    def _does_exist(self, board, target):
+        for o in board["diamonds"]:
+            if target["x"] == o["x"] and target["y"] == o["y"]:
+                return True
+        return False
+
     def _where_to(self, board):
-        if self.inventory == 5:
+        #print("pos: " + str(self.position) + " old: " + str(self.oldPosition))
+        if self.position == self.oldPosition:
+            return random.choice(["North", "West", "South", "East"])
+        if self.inventory >= 4:
             return self._go_home(board)
         else:
             lowest = {"r": 10000, "object": None, "type": None}
@@ -141,15 +154,23 @@ class Bot():
                                     lowest["object"] = {"x": o2["position"]["x"], "y": o2["position"]["y"]}
                                     lowest["type"] = "tp"
                                     lowest["r"] = r2
-                        elif o["name"] == "DiamondButton":
-                            r2 = r + self._getDelta({"x": o2["position"]["x"], "y": o2["position"]["y"]}, diamond)
-                            if r2/1.5 < lowest["r"]:
-                                lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
-                                lowest["type"] = "gen"
-                                lowest["r"] = r2/2
+                elif r < lowest["r"]:
+                    if o["name"] == "DiamondButton":
+                        lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
+                        lowest["type"] = "gen"
+                        lowest["r"] = r
 
 
             diamond = lowest["object"]
+            if self.target != None and self._does_exist(board, self.target["object"]) and (self.target["object"]["x"] is not diamond["x"] or self.target["object"]["y"] is not diamond["y"]):
+                if lowest["type"] == "diamond" and self.target["type"] == "diamond":
+                    if self.target["object"]["points"] < diamond["points"] and self.inventory < 4:
+                        self.target = lowest
+                    else:
+                        #print("forstatt mot gamla")
+                        diamond = self.target["object"]
+            elif self.target == None:
+                self.target = lowest
 
             #print("Gar till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
 
@@ -172,11 +193,12 @@ class Bot():
         board = self.get_board_info()
         while(True):
             if(not board):
-                #print("Kan inte hamta board")
+                print("Kan inte hamta board")
                 self._rejoin()
                 time.sleep(100/1000)
                 board = self.get_board_info()
                 continue
+
 
             self._update_bot(board)
             #time.sleep(board["minimumDelayBetweenMoves"] / 1000)
@@ -184,5 +206,6 @@ class Bot():
             if(self.should_rejoin):
                 self._rejoin()
 
-            time.sleep(100/1000)
+            time.sleep(75/1000)
+
             board = self.move(self._where_to(board))
