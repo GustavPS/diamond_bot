@@ -15,4 +15,4 @@ class Api():
         }
         if(protocol == "POST"):
             return requests.post(url = self.api_endpoint + api, headers = headers, data =json.dumps(self.data), timeout=2, verify=False)
-        return requests.get(self.api_endpoint+api, timeout=2, verify=False)
+        return requests.get(self.api_endpoint+api, verify=False)

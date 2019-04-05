@@ -88,7 +88,6 @@ class Bot():
     def _go_home(self, board):
         board2 = self.create_graph(board)
         path = self.bfs(board2, (int(self.position["x"]),int(self.position["y"])), "home_base")
-        pprint(path)
         if len(path) > 1:
             goal = path[1]
         else:
@@ -176,6 +175,8 @@ class Bot():
                     queue.append(path + [(x2, y2)])
                     seen.add((x2, y2))
 
+        return None
+
     def create_graph(self, board):
         graph = []
         count = 0
@@ -217,8 +218,9 @@ class Bot():
     def _where_to(self, board):
         board2 = self.create_graph(board)
         path = self.bfs(board2, (int(self.position["x"]),int(self.position["y"])), "diamond_button")
+        if path is None:
+            return "stay"
 
-        pprint(path)
         if len(path) > 1:
             goal = path[1]
         else:
@@ -324,15 +326,16 @@ class Bot():
                 board = self.get_board_info()
                 continue
 
-            self.timeStart = datetime.datetime.now()
             self._update_bot(board)
             #time.sleep(board["minimumDelayBetweenMoves"] / 1000)
             #time.sleep(20/1000)
             if(self.should_rejoin):
                 self._rejoin()
 
-            time.sleep(50 / 1000)
+            time.sleep(70 / 1000)
 
-            board = self.move(self._where_to(board))
-            self.timeEnd = datetime.datetime.now()
-            self.timeDelta = self.timeEnd - self.timeStart
+            direction = self._where_to(board)
+            if direction is "stay":
+                board = self.get_board_info()
+            else:
+                board = self.move(direction)
