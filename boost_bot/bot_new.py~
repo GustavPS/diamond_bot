@@ -88,6 +88,7 @@ class Bot():
     def _go_home(self, board):
         board2 = self.create_graph(board)
         path = self.bfs(board2, (int(self.position["x"]),int(self.position["y"])), "home_base")
+        pprint(path)
         if len(path) > 1:
             goal = path[1]
         else:
@@ -220,6 +221,7 @@ class Bot():
         board2 = self.create_graph(board)
         path = self.bfs(board2, (int(self.position["x"]),int(self.position["y"])), "diamond")
 
+        pprint(path)
         if len(path) > 1:
             goal = path[1]
         else:
@@ -332,7 +334,7 @@ class Bot():
             if(self.should_rejoin):
                 self._rejoin()
 
-            time.sleep(45 / 1000)
+            time.sleep(50 / 1000)
 
             board = self.move(self._where_to(board))
             self.timeEnd = datetime.datetime.now()
