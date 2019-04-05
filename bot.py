@@ -1,6 +1,8 @@
 from api import Api
 import time, datetime
 import math, random
+from pprint import pprint
+import collections
 
 class Bot():
     def __init__(self, token, name):
@@ -137,12 +139,61 @@ class Bot():
                 return True
         return False
 
+    def bfs(self, grid, start):
+        queue = collections.deque([[start]])
+        width = 15
+        height = 12
+        seen = set([start])
+        while queue:
+            path = queue.popleft()
+            x, y = path[-1]
+            if grid[x][y]["type"] == "diamond":
+                return path
+            for x2, y2 in ((x+1,y), (x-1,y), (x,y+1), (x,y-1)):
+                if 0 <= x2 < width and 0 <= y2 < height and (grid[x2][y2]["type"] == "path" or grid[x2][y2]["type"] == "diamond")  and (x2, y2) not in seen:
+                    queue.append(path + [(x2, y2)])
+                    seen.add((x2, y2))
+
+    def create_graph(self, board):
+        graph = []
+        count = 0
+        for x in range(0, board["width"]):
+            graph.append([])
+            for y in range(0, board["height"]):
+                n = {
+                    "x": x,
+                    "y": y,
+                    "type": "path",
+                    "edges": []
+                }
+                for diamond in board["diamonds"]:
+                    if diamond["x"] == x and diamond["y"] == y:
+                        check = True
+                        n["type"] = "diamond"
+                        break
+
+                graph[x].append(n)
+        return graph
+
+
     def _where_to(self, board):
-        print("pos: " + str(self.position) + " old: " + str(self.oldPosition))
-        if self.position == self.oldPosition:
-            return random.choice(["North", "West", "South", "East"])
         if self.inventory >= 4:
             return self._go_home(board)
+        
+        board2 = self.create_graph(board)
+        path = self.bfs(board2, (int(self.position["x"]),int(self.position["y"])))
+
+        pprint(path)
+        if len(path) > 1:
+            goal = path[1]
+        else:
+            goal = path[0]
+
+        
+        '''
+        if self.position == self.oldPosition:
+            return random.choice(["North", "West", "South", "East"])
+
         else:
             lowest = {"r": 10000, "object": None, "type": None}
             for diamond in board["diamonds"]:
@@ -154,7 +205,7 @@ class Bot():
 
 
             for o in board["gameObjects"]:
-                r = self._getDelta(self.home, {"x": o["position"]["x"], "y": o["position"]["y"]})
+                r = self._getDelta(self.position, {"x": o["position"]["x"], "y": o["position"]["y"]})
 
                 if o["name"] == "Teleporter":
                     #Find the other teleporter
@@ -192,24 +243,39 @@ class Bot():
             deltaX = self.position["x"] - diamond["x"]
             deltaY = self.position["y"] - diamond["y"]
 
-            if random.randint(0,2) == 1:
-                if self.position["x"] > diamond["x"]:
-                    return "West"
-                elif self.position["x"] < diamond["x"]:
-                    return "East"
-                elif self.position["y"] > diamond["y"]:
-                    return "North"
-                else:
-                    return "South"
+
+        if random.randint(0,2) == 1:
+            if self.position["x"] > diamond["x"]:
+                return "West"
+            elif self.position["x"] < diamond["x"]:
+                return "East"
+            elif self.position["y"] > diamond["y"]:
+                return "North"
             else:
-                if self.position["y"] > diamond["y"]:
-                    return "North"
-                elif self.position["y"] < diamond["y"]:
-                    return "South"
-                elif self.position["x"] > diamond["x"]:
-                    return "West"
-                else:
-                    return "East"
+                return "South"
+        '''
+        if goal[0] < self.position["x"]:
+            return "West"
+        elif goal[0] > self.position["x"]:
+            return "East"
+        elif goal[1] < self.position["y"]:
+            return "North"
+        elif goal[1] > self.position["y"]:
+            return "South"
+        else:
+            print("dafuq")
+
+
+        """
+        if self.position["y"] > diamond["y"]:
+            return "North"
+        elif self.position["y"] < diamond["y"]:
+            return "South"
+        elif self.position["x"] > diamond["x"]:
+            return "West"
+        else:
+            return "East"
+        """
 
 
     def game_loop(self):
@@ -219,7 +285,7 @@ class Bot():
             if(not board):
                 print("Kan inte hamta board")
                 self._rejoin()
-                time.sleep(100/1000)
+                #time.sleep(100/1000)
                 board = self.get_board_info()
                 continue
 
@@ -230,7 +296,7 @@ class Bot():
             if(self.should_rejoin):
                 self._rejoin()
 
-            time.sleep(60 / 1000)
+            time.sleep(50 / 1000)
 
             board = self.move(self._where_to(board))
             self.timeEnd = datetime.datetime.now()
