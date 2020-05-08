@@ -3,7 +3,7 @@ import json
 
 class Api():
     def __init__(self):
-        self.api_endpoint = "http://diamonds.etimo.se/api"
+        self.api_endpoint = "http://diamonds.etimo.se/api/"
         self.data = {}
         
     def set_data(self, data):

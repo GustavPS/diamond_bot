@@ -7,7 +7,7 @@ class Bot():
         self.token = token
         self.name = name
         self.api = Api()
-        self.board_id = 1
+        self.board_id = 2
         self.position = { "x": 0, "y": 0 }
         self.home = {"x": 0, "y": 0}
         self.inventory = 0
@@ -62,22 +62,20 @@ class Bot():
         return False
 
     def _update_bot(self, board):
-        for bot in board["bots"]:
-            if bot["name"] == self.name:
+        for gameObj in board["data"]["gameObjects"]:
+            if gameObj["type"] == "BotGameObject" and gameObj["properties"]["name"] == self.name:
                 self.oldPosition["x"] = self.position["x"]
                 self.oldPosition["y"] = self.position["y"]
-                self.position["x"] = bot["position"]["x"]
-                self.position["y"] = bot["position"]["y"]
-                self.home["x"] = bot["base"]["x"]
-                self.home["y"] = bot["base"]["y"]
+                self.position["x"] = gameObj["position"]["x"]
+                self.position["y"] = gameObj["position"]["y"]
+                self.home["x"] = gameObj["properties"]["base"]["x"]
+                self.home["y"] = gameObj["properties"]["base"]["y"]
 
-                self.inventory = bot["diamonds"]
-
-                if bot["millisecondsLeft"] < board["minimumDelayBetweenMoves"]:
+                self.inventory = gameObj["properties"]["diamonds"]
+                if gameObj["properties"]["millisecondsLeft"] < board["data"]["minimumDelayBetweenMoves"]:
                     self.should_rejoin = True
                 else:
                     self.should_rejoin = False
-
                 break
 
     def _rejoin(self):
@@ -85,19 +83,18 @@ class Bot():
 
     def _go_home(self, board):
         lowest = {"r": 10000, "object": None, "type": None}
-        lowest["r"] = self._getDelta(self.position, self.home)
+        lowest["r"] = self._getDelta(self.position, {"position": {"x": self.home["x"], "y": self.home["y"]}})
         lowest["object"] = self.home
         #deltaX = self.position["x"] - self.home["x"]
         #deltaY = self.position["y"] - self.home["y"]
+        for o in board["data"]["gameObjects"]:
+            r = self._getDelta(self.home, o)
 
-        for o in board["gameObjects"]:
-            r = self._getDelta(self.home, {"x": o["position"]["x"], "y": o["position"]["y"]})
-
-            if o["name"] == "Teleporter":
+            if o["type"] == "TeleportGameObject":
                 #Find the other teleporter
-                for o2 in board["gameObjects"]:
-                    if o2 != o and o2["name"] == "Teleporter":
-                        r2 = self._getDelta(self.home, {"x": o2["position"]["x"], "y": o2["position"]["y"]})
+                for o2 in board["data"]["gameObjects"]:
+                    if o2 != o and o2["type"] == "TeleportGameObject":
+                        r2 = self._getDelta(self.home, o2)
                         if (r2+r) < lowest["r"]:
                             #print("TA TELEPORT HEM")
                             lowest["r"] = r2+r
@@ -111,63 +108,65 @@ class Bot():
             if self.position["x"] > lowest["object"]["x"]:
                 return "West"
             elif self.position["x"] < lowest["object"]["x"]:
-                return "East"
+                return "EAST"
             elif self.position["y"] > lowest["object"]["y"]:
-                return "North"
+                return "NORTH"
             else:
-                return "South"
+                return "SOUTH"
         else:
             if self.position["y"] > lowest["object"]["y"]:
-                return "North"
+                return "NORTH"
             elif self.position["y"] < lowest["object"]["y"]:
-                return "South"
+                return "SOUTH"
             elif self.position["x"] > lowest["object"]["x"]:
                 return "West"
             else:
-                return "East"
+                return "EAST"
 
     def _getDelta(self, _from, to):
-        deltaX = to["x"] - _from["x"]
-        deltaY = to["y"] - _from["y"]
+        deltaX = to["position"]["x"] - _from["x"]
+        deltaY = to["position"]["y"] - _from["y"]
         return math.sqrt(pow(deltaX,2) + pow(deltaY,2))
 
     def _does_exist(self, board, target):
-        for o in board["diamonds"]:
-            if target["x"] == o["x"] and target["y"] == o["y"]:
+        for o in board["data"]["gameObjects"]:
+            if target["x"] == o["position"]["x"] and target["y"] == o["position"]["y"]:
                 return True
         return False
 
     def _where_to(self, board):
-        print("pos: " + str(self.position) + " old: " + str(self.oldPosition))
+        #print("pos: " + str(self.position) + " old: " + str(self.oldPosition))
         if self.position == self.oldPosition:
-            return random.choice(["North", "West", "South", "East"])
+            return random.choice(["NORTH", "WEST", "SOUTH", "EAST"])
         if self.inventory >= 4:
             return self._go_home(board)
         else:
             lowest = {"r": 10000, "object": None, "type": None}
-            for diamond in board["diamonds"]:
-                r = self._getDelta(self.position, diamond)
-                if r < lowest["r"]:
-                    lowest["r"] = r
-                    lowest["object"] = diamond
-                    lowest["type"] = "diamond"
+            for obj in board["data"]["gameObjects"]:
+                if obj["type"] == "DiamondGameObject":
+                    r = self._getDelta(self.position, obj)
+                    if r < lowest["r"]:
+                        lowest["r"] = r
+                        lowest["object"] = {"x": obj["position"]["x"], "y": obj["position"]["y"], "points": obj["properties"]["points"]}
+                        lowest["type"] = "diamond"
 
 
-            for o in board["gameObjects"]:
-                r = self._getDelta(self.home, {"x": o["position"]["x"], "y": o["position"]["y"]})
+            for o in board["data"]["gameObjects"]:
+                r = self._getDelta(self.home, o)
 
-                if o["name"] == "Teleporter":
+                if o["type"] == "TeleportGameObject":
                     #Find the other teleporter
-                    for o2 in board["gameObjects"]:
-                        if o2 != o and o2["name"] == "Teleporter":
-                            for diamond in board["diamonds"]:
-                                r2 = r + self._getDelta({"x": o2["position"]["x"], "y": o2["position"]["y"]}, diamond)
-                                if r2 < lowest["r"]:
-                                    lowest["object"] = {"x": o2["position"]["x"], "y": o2["position"]["y"]}
-                                    lowest["type"] = "tp"
-                                    lowest["r"] = r2
+                    for o2 in board["data"]["gameObjects"]:
+                        if o2 != o and o2["type"] == "TeleportGameObject":
+                            for diamond in board["data"]["gameObjects"]:
+                                if diamond["type"] == "DiamondGameObject":
+                                    r2 = r + self._getDelta({"x": o2["position"]["x"], "y": o2["position"]["y"]}, diamond)
+                                    if r2 < lowest["r"]:
+                                        lowest["object"] = {"x": o2["position"]["x"], "y": o2["position"]["y"]}
+                                        lowest["type"] = "tp"
+                                        lowest["r"] = r2
                 elif r/2 < lowest["r"]:
-                    if o["name"] == "DiamondButton":
+                    if o["type"] == "DiamondButtonGameObject":
                         lowest["object"] = {"x": o["position"]["x"], "y": o["position"]["y"]}
                         lowest["type"] = "gen"
                         lowest["r"] = r/2
@@ -176,47 +175,42 @@ class Bot():
             diamond = lowest["object"]
             if self.target != None and self._does_exist(board, self.target["object"]) and (self.target["object"]["x"] is not diamond["x"] or self.target["object"]["y"] is not diamond["y"]):
                 if lowest["type"] == "diamond" and self.target["type"] == "diamond":
+                    print(self.target)
+                    print("**********")
+                    print(diamond)
                     if self.target["object"]["points"] < diamond["points"] and self.inventory < 4:
                         self.target = lowest
                     else:
                         #print("forstatt mot gamla")
-                        diamond = self.target["object"]
+                        diamond = self.target
             elif self.target == None:
                 self.target = lowest
 
-            print("Gar till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
+            #print("Gar till: X:" + str(diamond["x"]) + " Y: " + str(diamond["y"]))
 
-            if lowest["type"] == "diamond" and self.inventory + diamond["points"] > 5:
+            if lowest["type"] == "DiamondGameObject" and self.inventory + diamond["properties"]["points"] > 5:
                 return self._go_home(board)
 
             deltaX = self.position["x"] - diamond["x"]
             deltaY = self.position["y"] - diamond["y"]
 
-            if random.randint(0,2) == 1:
-                if self.position["x"] > diamond["x"]:
-                    return "West"
-                elif self.position["x"] < diamond["x"]:
-                    return "East"
-                elif self.position["y"] > diamond["y"]:
-                    return "North"
-                else:
-                    return "South"
+          
+            if self.position["y"] > diamond["y"]:
+                return "NORTH"
+            elif self.position["y"] < diamond["y"]:
+                return "SOUTH"
+            elif self.position["x"] > diamond["x"]:
+                return "WEST"
             else:
-                if self.position["y"] > diamond["y"]:
-                    return "North"
-                elif self.position["y"] < diamond["y"]:
-                    return "South"
-                elif self.position["x"] > diamond["x"]:
-                    return "West"
-                else:
-                    return "East"
+                return "EAST"
 
 
     def game_loop(self):
         board = self.get_board_info()
+        #print(board["path"])
         while(True):
 
-            if(not board):
+            if(board is False):
                 print("Kan inte hamta board")
                 self._rejoin()
                 time.sleep(100/1000)
@@ -225,8 +219,8 @@ class Bot():
 
             self.timeStart = datetime.datetime.now()
             self._update_bot(board)
-            #time.sleep(board["minimumDelayBetweenMoves"] / 1000)
-            #time.sleep(20/1000)
+            #time.sleep(board["data"]["minimumDelayBetweenMoves"] / 1000)
+            #time.sleep(40/1000)
             if(self.should_rejoin):
                 self._rejoin()
 
